@@ -85,7 +85,7 @@
                                                (div ((id "header")) "\r\n    " 
                                                     (div ((id "nav")) 
                                                          (a ((href "index.html")) "Reset") " " nbsp "|" nbsp " " 
-                                                         (a ((href "/resources/")) "Resources") " " nbsp "|" nbsp " " 
+                                                         (a ((href "/export")) "Export List") " " nbsp "|" nbsp " " 
                                                          (a ((href "#")) "About TagExplorer") " " nbsp "|" nbsp " " 
                                                          (a ((href "/info")) "Info") " " nbsp "|" nbsp " " 
                                                          (a ((href "/tagexplorer")) "Tag Explorer") " " nbsp "|" nbsp " " 
@@ -392,16 +392,13 @@
                                                                                         [λ args [make-hash]]]]]] pre-selected-tags]
                                              [hash-keys tagshash]]]]]]
 [define build-export-response [lambda []
-                              (response/xexpr
-                               
-                               (wrap-content `(span (h1 "Internal details")
-                                       
-                                       [div [[style "border:3px solid red"]]
-                                            [p [] "Resources directory:" ,[format "~a" resources-dir]]
-                                            [p [] "Scanned directory:" ,[format "~a" base-dir]]
-                                            ;[p [] "Number of items:" ,[format "~a" [length  files]]]
-                                            [p [] "Number of tags:" ,[format "~a" [length [hash-keys tagcounts]]]]
-                                            [pre [] ,[format "~a" [select-files   selected-tags]]]])))]]
+                              (response/full
+                          200
+                          #"OK"
+                          (current-seconds)
+                          #"text/plain"
+                          (list ) ; (make-header a b )
+                           [list [string->bytes/utf-8 [string-join [map symbol->string [select-files selected-tags]] [format "~n"]]]])]]
 [define [remove-tags bad-tags tag-list]
   [remove [lambda [a-tag] [member a-tag bad-tags]] tag-list]]
 
