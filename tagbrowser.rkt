@@ -159,7 +159,7 @@
                                           [with-spaces [regexp-replace "\\.|_" filename " "]]] 
                                       [delete-duplicates [append
                                                                                                       [regexp-split " |\\.|-|_|/|\\\\|\\(|\\)|&" filename]
-                                                                                                      [pregexp-split "\\\\" fname]
+                                                                                                      [pregexp-split "\\\\|/| " fname]
                                                                                                       [regexp-split "\\.|/|\\\\" filename]
                                                                                                       [regexp-split "\\-+|\\[+|\\]+" with-spaces]
                                                                                                       [regexp-split "\\-+| +|_+" with-spaces]
@@ -345,7 +345,7 @@
 [define [build-tags-box files] 
   [append '[ div  ((style "margin-top:10px;")) ] [apply append [ zip [map 
                                                   [λ [a-clip]
-                                                    [build-href a-clip a-clip] ] files] [make-list [length files] ", "]]]]]
+                                                    [build-href a-clip [uri-decode a-clip]] ] files] [make-list [length files] ", "]]]]]
 
 
 [define [build-footer]
@@ -426,6 +426,7 @@
     [log "Decoded path " split-path]
     [set! selected-tags [map [lambda [x] [string->symbol [if [symbol? x][symbol->string x][format "~a" x]]] ]
                              [read-from-string [=f selected  [request-bindings request] "[]"]]]]
+    [log [format "Selected tags: ~s" selected-tags]]
     [set! pre-selected-tags [map [lambda [x] [string->symbol [if [symbol? x][symbol->string x][format "~a" x]]] ]
                                  [read-from-string [=f or  [request-bindings request] "[]"]]]]
     [set! page-number [string->number
@@ -441,7 +442,6 @@
       [log "Selected tags: " selected-tags]
       [log "Union tags: " pre-selected-tags]
       [set! selected-tags [cons [string->symbol [caddr split-path]]  selected-tags]]]
-    [log "Selected tags: " selected-tags]
     [set! full-search-results [select-files   selected-tags]]
     [let [[selected-files [clip-to-page page-number full-search-results]]]
       [set! total-selected-files [length selected-files]]
