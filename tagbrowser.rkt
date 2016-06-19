@@ -6,12 +6,39 @@
 (require net/uri-codec)
 ;[require unstable/port]
 [require file/md5]
+[require "spath.rkt"]
 [require "markov.scm"]
 (require mzlib/pregexp mzlib/string)
 [require "stop-words.rkt"]
 (require web-server/managers/lru)
 [define introduction #t]
 [define page-length  15]
+
+[define base-dir  #f]
+
+(define-for-syntax args (current-command-line-arguments))
+(define-for-syntax GRAPHICS (or
+                            (= (vector-length args) 0)
+                            (equal? (vector-ref args 0) "--graphics")))
+
+(define-syntax (if-graphics stx)
+  (syntax-case stx ()
+    ((_ debug-expr non-debug-expr)
+     (if GRAPHICS
+         #'debug-expr
+         #'non-debug-expr))))
+
+(if-graphics
+   [begin
+     [define graphics #t]
+     [set! base-dir [path->string [get-directory]]]
+     [require racket/gui/base]
+     ]
+   [begin [define graphics #f]
+   [set! base-dir  [vector-ref (current-command-line-arguments) 0]]
+]     )
+
+
 
 [define mime-types '[[flv  . #"video/x-flv"]
                      [mp4  . #"video/mp4"]
@@ -134,8 +161,6 @@
                                                                                                                                                               (h1 () "Global Tags") "\r\n        "(p () ,[build-tags-box [sort [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50] string<? #:key [lambda [x][symbol->string x]]]] )                                                                                                                                                                                                                                                                                               (a ((href "http://www.web-designers-directory.org/"))) (a ((href "http://www.medicine-pet.com/"))) "\r\n      ") "\r\n    ") "\r\n  ") "\r\n  " (div ((id "footer")) "Copyright " copy " 2016 PraeceptaMachinae.com." (br ()) "\r\n    " (a ((href "http://validator.w3.org/check?uri=referer") (target "_blank")) "XHTML") "  |  " (a ((href "http://jigsaw.w3.org/css-validator/check/referer?warning=no&profile=css2") (target "_blank")) "CSS") "  - Thanks to: " (a ((href "http://www.medicine-pet.com/") (target "_blank")) "Pet Medicine") " | " (span ((class "crd")) (a ((href "http://www.web-designers-directory.org/")) "Web site Design")) " by : " (a ((href "http://www.web-designers-directory.org/") (target "_blank")) "WDD")) "\r\n") "\r\n\r\n") "\r\n")]]
 
 [define identity [λ [x] x]]
-;[define base-dir  [if [< 0 [vector-length (current-command-line-arguments)]] [vector-ref (current-command-line-arguments) 0][path->string [get-directory]]] ];"z:/torrents/Completed Torrents"];
-[define base-dir  [vector-ref (current-command-line-arguments) 0]]
 ;[define resources-dir "e:/programming/" ]
 [define resources-dir [current-directory] ]
 [define log-history ""]
@@ -276,7 +301,7 @@
                           [param [[name "movie"] [value "/resources/flvmaxi.swf"]]]
                           [param [[name "FlashVars"] [value ,[format "flv=~a"  [string-join [list "/getfile" [path->string [build-path a-clip]]] "/"]]]]]
                           ]
-                 [if [regexp-match "(?i:png|gif|jpg|jpeg)" a-clip]
+                 [if [regexp-match "(?i:\\.png|\\.gif|\\.jpg|\\.jpeg)" a-clip]
                      `[div  [[style "clear: both"]] 
                            (p () [a ([href ,[build-download-link-string a-clip [path->string[file-name-from-path a-clip]]]]) 
                                     (img ((align "left") (alt ,[format "~a" a-clip ]) (height "129") (src ,[format "/getfile/~a" a-clip ]) 
@@ -345,7 +370,7 @@
 [define [build-tags-box files] 
   [append '[ div  ((style "margin-top:10px;")) ] [apply append [ zip [map 
                                                   [λ [a-clip]
-                                                    [build-href a-clip [uri-decode a-clip]] ] files] [make-list [length files] ", "]]]]]
+                                                    [build-href a-clip [uri-decode [format "~a" a-clip]]] ] files] [make-list [length files] ", "]]]]]
 
 
 [define [build-footer]
@@ -416,7 +441,7 @@
 ; The main request hander
 
 [require mzlib/defmacro]
-[require "spath.rkt"]
+
 (define (start request)
   [log "Received request" [url->string [request-uri request]]]
   
@@ -540,10 +565,13 @@
     ;[log "Call complete"]
     ])
 
+[if graphics
+(serve/servlet start
+               #:launch-browser? #t #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t 	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
+               )
 (serve/servlet start
                #:launch-browser? #f #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t 	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
-               )
-
+               )]
 
 
 
