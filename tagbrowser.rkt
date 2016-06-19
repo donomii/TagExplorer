@@ -1,4 +1,4 @@
-#lang racket/gui
+#lang racket
 (require web-server/servlet
          web-server/servlet-env
          racket/path srfi/1
@@ -134,7 +134,8 @@
                                                                                                                                                               (h1 () "Global Tags") "\r\n        "(p () ,[build-tags-box [sort [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50] string<? #:key [lambda [x][symbol->string x]]]] )                                                                                                                                                                                                                                                                                               (a ((href "http://www.web-designers-directory.org/"))) (a ((href "http://www.medicine-pet.com/"))) "\r\n      ") "\r\n    ") "\r\n  ") "\r\n  " (div ((id "footer")) "Copyright " copy " 2016 PraeceptaMachinae.com." (br ()) "\r\n    " (a ((href "http://validator.w3.org/check?uri=referer") (target "_blank")) "XHTML") "  |  " (a ((href "http://jigsaw.w3.org/css-validator/check/referer?warning=no&profile=css2") (target "_blank")) "CSS") "  - Thanks to: " (a ((href "http://www.medicine-pet.com/") (target "_blank")) "Pet Medicine") " | " (span ((class "crd")) (a ((href "http://www.web-designers-directory.org/")) "Web site Design")) " by : " (a ((href "http://www.web-designers-directory.org/") (target "_blank")) "WDD")) "\r\n") "\r\n\r\n") "\r\n")]]
 
 [define identity [λ [x] x]]
-[define base-dir  [if [< 0 [vector-length (current-command-line-arguments)]] [vector-ref (current-command-line-arguments) 0][path->string [get-directory]]] ];"z:/torrents/Completed Torrents"];
+;[define base-dir  [if [< 0 [vector-length (current-command-line-arguments)]] [vector-ref (current-command-line-arguments) 0][path->string [get-directory]]] ];"z:/torrents/Completed Torrents"];
+[define base-dir  [vector-ref (current-command-line-arguments) 0]]
 ;[define resources-dir "e:/programming/" ]
 [define resources-dir [current-directory] ]
 [define log-history ""]
@@ -540,7 +541,7 @@
     ])
 
 (serve/servlet start
-               #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t 	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
+               #:launch-browser? #f #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t 	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
                )
 
 
