@@ -66,6 +66,7 @@
   [log [format "Shell command: explorer /select,~a" a-path-string]]
   [displayln [format "Shell command: explorer /select,\"~a\"" a-path-string]]
   [system [format "explorer /select,\"~a\"" a-path-string]]]
+
 [define build-results-page-old [lambda [selected-files ]
                                  `(html
                                    (head (title "Tag Browser"))
@@ -93,11 +94,19 @@
 [define build-results-page [lambda [selected-files]
                              
                              [wrap-content `(div ((class "box")) "\r\n        "
-                                  ,[if [empty? selected-tags] `[br]  `[div [[style "border:3px solid green"]]  (h1 () "Selected Tags") ,[build-selected-box]]]
+                                  ,[if [empty? selected-tags]
+                                       `[br]
+                                       `[div [[style "border:3px solid green"]]  (h1 () "Selected Tags") ,[build-selected-box]]]
                                                     
-                                  ,[if [empty? selected-files] `[br]  `(h2 () "Your search results") ]
-                                     ,[if [empty? selected-files] `[br] `(p () (br ()) ,[if [not [empty? selected-files]] [build-download-box selected-files limit-list]`[br]])]
-                                  ,[if [not [empty? selected-files]] `(div ((class "box")) "\r\n        "(h1 () "Related Tags") "\r\n        " (p () ,[build-tags-box [take-at-most [remove-tags [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50] [remove-tags selected-tags [suggest-tags selected-files]]]10 ]] ) )`[br]]
+                                  ,[if [empty? selected-files]
+                                       `[br]
+                                       `(h2 () "Your search results") ]
+                                  ,[if [empty? selected-files]
+                                       `[br]
+                                       `(p () (br ()) ,[if [not [empty? selected-files]] [build-download-box selected-files limit-list]`[br]])]
+                                  ,[if [empty? selected-files]
+                                       `[br]
+                                       `(div ((class "box")) "\r\n        "(h1 () "Related Tags") "\r\n        " (p () ,[build-tags-box [take-at-most [remove-tags [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50] [remove-tags selected-tags [suggest-tags selected-files]]]10 ]] ) )]
                                   
                                   ,[if  [not [empty? selected-files]]  `(div ((class "box")) "\r\n        "(h1 () "Extra") "\r\n        " (p () ,[build-tags-box [take-at-most  [remove-tags selected-tags [suggest-tags selected-files]]10]] )) `[br]]
                                   [div [[style "border:3px solid red"]] "Common Tags"
@@ -143,12 +152,12 @@
                                                                                                                            ,[if introduction [begin [set! introduction #f] 
                                                                                                                                                     `(div ((class "box")) "\r\n        "
                                                                                                                                                           (h1 () "Using TagBrowser") "\r\n        " 
-                                                                                                                                                          (p ()  "Tagbrowser is a quick and convenient way to explore your files." ) [p [] "To start, select a keyword from the lists below, or a type of file, from the list to right."]    "\r\n      ")] `[br]]
+                                                                                                                                                          (p ()  "Tagbrowser is a quick and convenient way to explore your files." ) [p [] "To start, search for a keyword, or select a preset from the list to right."]    "\r\n      ")] `[br]]
                                                                                                                            ,content "\r\n      "           "\r\n    ")     (div ((id "right-column")) "\r\n      " 
                                                                                                                                             
                                                                                                                                             
                                                                                                                                             "\r\n      " (div ((class "sidebar")) "\r\n        "  "\r\n        "
-(h3 () "Explore your files") "\r\n        " (p () "Select tags to refine your search")(p())
+(h3 () "Explore your files") "\r\n        " (p () "Select tags to refine your search, select [X] to forbid that tag.")(p())
                                                                                                                                                               (h3 () "Presets") 
                                                                                                                                                               "\r\n        " 
                                                                                                                                                               (div ((class "box")) "\r\n          " 
@@ -220,29 +229,29 @@
 [set! quiet #f]
 ;[write tagcounts]
 [define selected-tags '[]]
+[define rejected-tags '[]]
 [define pre-selected-tags '[gif png]]
 ;[put-preferences [list 'clipbook:archive-directory] [list [get-preference 'clipbook:archive-directory [lambda [] [path->string [get-directory]]]]]]
 [define archive-directory [get-preference 'clipbook:archive-directory ]]
 
 ; HTML builders
 ; return XHTML structures that can be put together in a response/xhtml 
-[define[ build-href link text [pn 0]]
+[define[ build-href selected text rejected-tags [pn 0]]
   ;  `[a [[href ,[format "/addtag/~a?selected=~a&or=~a" link selected-tags pre-selected-tags]]] ,[format "~a(~a%)" text [round [* 100 [/ [hash-ref selected-scored-tags link [const 0]] [add1 total-selected-files]]]]]]
-  `[a [[href ,[format "/display/?selected=~s&or=~s&page=~s" [cons link selected-tags ] pre-selected-tags pn]]] ,[format "~a" text ]]
-  
+  `[a [[href ,[format "/display/?selected=~s&rejected=~s&or=~s&page=~s" selected  rejected-tags  pre-selected-tags pn]]] ,[format "~a" text ]]
   ]
 
-[define[ build-better-href some-tags text [pn page-number]]
+[define[ build-better-href some-tags  text rejected-tags [pn page-number] ]
   ;  `[a [[href ,[format "/addtag/~a?selected=~a&or=~a" link selected-tags pre-selected-tags]]] ,[format "~a(~a%)" text [round [* 100 [/ [hash-ref selected-scored-tags link [const 0]] [add1 total-selected-files]]]]]]
-  `[a [[href ,[format "/display/?selected=~s&or=~s&page=~s" some-tags pre-selected-tags pn]]] ,[format "~a" text ]]
-  
+  `[a [[href ,[format "/display/?selected=~s&rejected=~s&or=~s&page=~s" some-tags rejected-tags pre-selected-tags pn]]] ,[format "~a" text ]]
   ]
+
 [define[ build-download-link link text]
   `[a [[href ,[format "/getfile/~a" link ]]] ,text]]
 [define[ build-download-link-string link text]
   [format "/getfile/~a" link ]]
 [define [build-remove-href a-string text]
-  `[a [[href ,[format "/removetag/~a?selected=~a&or=~a" a-string [remove-tags [list a-string ] selected-tags] pre-selected-tags]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
+  `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  [remove-tags [list a-string ] selected-tags] rejected-tags pre-selected-tags]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
 [define take-at-most [λ [ a-list a-num] [if [< [length a-list] a-num]
                                             a-list
                                             [take a-list a-num]]]]
@@ -278,7 +287,7 @@
            
            ]
     
-    [append `[div ] [map [lambda [p] `[span [[elem "debug"]] ,[build-better-href  selected-tags [format "~a" p] p] " "]] [iota  total-pages]]]]
+    [append `[div ] [map [lambda [p] `[span [[elem "debug"]] ,[build-better-href  selected-tags [format "~a" p] rejected-tags p] " "]] [iota  total-pages]]]]
     ]
 
 [define [build-download-box files limiter] 
@@ -372,9 +381,15 @@
 ;              [λ [a-clip]
 ;                `[li []  ,[build-href a-clip a-clip] ", "]] files]]]]
 [define [build-tags-box files] 
-  [append '[ div  ((style "margin-top:10px;")) ] [apply append [ zip [map 
-                                                  [λ [a-clip]
-                                                    [build-href a-clip [uri-decode [format "~a" a-clip]]] ] files] [make-list [length files] ", "]]]]]
+   [append '[ div  ((style "margin-top:10px;"))] [apply append [ zip [map 
+       [λ [a-clip]
+           `[span ,[build-href [cons a-clip selected-tags ] [uri-decode [format "~a" a-clip]] rejected-tags]
+                  ,[build-href selected-tags   "[X]" [cons a-clip rejected-tags]]
+                 ]
+         ] files]
+              [make-list [length files] ", "]]]]
+
+  ]
 
 
 [define [build-footer]
@@ -398,29 +413,33 @@
   ]
 
 
-[define [select-files selected-tags][filter 
-                                     [λ [a-file] 
-                                       [equal? [length selected-tags ] 
-                                               ;[length [delete-duplicates [lset-intersection eq?  [hash-ref file-to-tags-cache a-file [const '[]]] selected-tags]]]]]
-                                               [length  [lset-intersection eq?  [hash-ref file-to-tags-cache a-file [const '[]]] selected-tags]]]]
-                                     ;[λ [X] [lset<= equal? selected-tags [tags-from-filename X] ]]
-                                     [if [empty? pre-selected-tags]
-                                         [begin
-                                           [displayln "Pre-selected all files"]
-                                           ;[displayln [hash-keys file-to-tags-cache]]
-                                           all-files-list]
-                                         [begin
-                                           [displayln [format "Preselecting: ~a" pre-selected-tags]]
-                                           ;rewrite this to update a hash rather than a list
-                                           ;the count could be part of the recommendations - the number of tags that match that file might be a good indicator of relevence
-                                           [letrec [[tagshash [make-hasheq]]]
-                                           [map [λ [x] 
-                                                                            [map [lambda [atag] [hash-set! tagshash atag [hash-ref tagshash atag 0]]]
-                                                                                 [hash-keys [spath-fail 
-                                                                                        [list x]                                                                                      ;[list [format "~a" x]]
-                                                                                        [send tags-to-files get-table] 
-                                                                                        [λ args [make-hash]]]]]] pre-selected-tags]
-                                             [hash-keys tagshash]]]]]]
+[define [select-files selected-tags rejected-tags]
+  [filter 
+   [λ [a-file] 
+     [equal? [length selected-tags ] 
+             ;[length [delete-duplicates [lset-intersection eq?  [hash-ref file-to-tags-cache a-file [const '[]]] selected-tags]]]]]
+             [length  [lset-intersection eq?  [hash-ref file-to-tags-cache a-file [const '[]]] selected-tags]]]]
+    [filter
+     [λ [a-file]
+       [equal? 0 [length  [lset-intersection eq?  [hash-ref file-to-tags-cache a-file [const '[]]] rejected-tags]]]]
+   ;[λ [X] [lset<= equal? selected-tags [tags-from-filename X] ]]
+   [if [empty? pre-selected-tags]
+       [begin
+         [displayln "Pre-selected all files"]
+         ;[displayln [hash-keys file-to-tags-cache]]
+         all-files-list]
+       [begin
+         [displayln [format "Preselecting: ~a" pre-selected-tags]]
+         ;rewrite this to update a hash rather than a list
+         ;the count could be part of the recommendations - the number of tags that match that file might be a good indicator of relevence
+         [letrec [[tagshash [make-hasheq]]]
+           [map [λ [x] 
+                  [map [lambda [atag] [hash-set! tagshash atag [hash-ref tagshash atag 0]]]
+                       [hash-keys [spath-fail 
+                                   [list x]                                                                                      ;[list [format "~a" x]]
+                                   [send tags-to-files get-table] 
+                                   [λ args [make-hash]]]]]] pre-selected-tags]
+           [hash-keys tagshash]]]]]]]
 [define build-export-response [lambda []
                               (response/full
                           200
@@ -455,6 +474,8 @@
     [log "Decoded path " split-path]
     [set! selected-tags [map [lambda [x] [string->symbol [if [symbol? x][symbol->string x][format "~a" x]]] ]
                              [read-from-string [=f selected  [request-bindings request] "[]"]]]]
+    [set! rejected-tags [map [lambda [x] [string->symbol [if [symbol? x][symbol->string x][format "~a" x]]] ]
+                             [read-from-string [=f rejected  [request-bindings request] "[]"]]]]
     [log [format "Selected tags: ~s" selected-tags]]
     [set! pre-selected-tags [map [lambda [x] [string->symbol [if [symbol? x][symbol->string x][format "~a" x]]] ]
                                  [read-from-string [=f or  [request-bindings request] "[]"]]]]
@@ -471,7 +492,7 @@
       [log "Selected tags: " selected-tags]
       [log "Union tags: " pre-selected-tags]
       [set! selected-tags [cons [string->symbol [caddr split-path]]  selected-tags]]]
-    [set! full-search-results [select-files   selected-tags]]
+    [set! full-search-results [select-files   selected-tags rejected-tags]]
     [let [[selected-files [clip-to-page page-number full-search-results]]]
       [set! total-selected-files [length selected-files]]
       [log [format "Selected ~a files" total-selected-files ]]
