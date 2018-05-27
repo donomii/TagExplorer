@@ -93,13 +93,16 @@
 [define build-results-page [lambda [selected-files]
                              
                              [wrap-content `(div ((class "box")) "\r\n        "
-                                  
+                                  ,[if [empty? selected-tags] `[br]  `[div [[style "border:3px solid green"]]  (h1 () "Selected Tags") ,[build-selected-box]]]
+                                                    
                                   ,[if [empty? selected-files] `[br]  `(h2 () "Your search results") ]
                                      ,[if [empty? selected-files] `[br] `(p () (br ()) ,[if [not [empty? selected-files]] [build-download-box selected-files limit-list]`[br]])]
                                   ,[if [not [empty? selected-files]] `(div ((class "box")) "\r\n        "(h1 () "Related Tags") "\r\n        " (p () ,[build-tags-box [take-at-most [remove-tags [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50] [remove-tags selected-tags [suggest-tags selected-files]]]10 ]] ) )`[br]]
                                   
                                   ,[if  [not [empty? selected-files]]  `(div ((class "box")) "\r\n        "(h1 () "Extra") "\r\n        " (p () ,[build-tags-box [take-at-most  [remove-tags selected-tags [suggest-tags selected-files]]10]] )) `[br]]
-                                  
+                                  [div [[style "border:3px solid red"]] "Common Tags"
+                                                    ,[build-tags-box [take [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50]]
+                                                    ]
                                   )]]]
 [define wrap-content [lambda [content]
                        `(html ((xmlns "http://www.w3.org/1999/xhtml")) "\r\n" 
@@ -168,7 +171,7 @@
               [set! log-history [string-join [list log-history [format "~a~n"  args]] " "]]]]
 [log "Chose base directory" base-dir]
 [define [recurse-dir dir]
-  
+  [displayln dir]
   [append [directory-list dir] 
           
           [append-map 
@@ -202,7 +205,8 @@
 [define all-files-list '[]]
 [define quiet
   [begin
-    [map [λ [fname] 
+    [map [λ [fname]
+           ;[log fname]
            [let [[tags  [map string->symbol [tags-from-filename fname]]]]
              [hash-set! file-to-tags-cache [string->symbol fname] tags]
              ;[log [format "Storing ~s" [string->symbol fname]]]
