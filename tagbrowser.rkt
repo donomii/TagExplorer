@@ -35,7 +35,7 @@
      [require racket/gui/base]
      ]
    [begin [define graphics #f]
-   [set! base-dir  [vector-ref (current-command-line-arguments) 0]]
+   [set! base-dir  (current-directory)]
 ]     )
 
 
