@@ -1,0 +1,23 @@
+#lang web-server/insta
+[require unstable/port]
+[require file/md5]
+;[put-preferences [list 'clipbook:archive-directory] [list [get-preference 'clipbook:archive-directory [lambda [] [path->string [get-directory]]]]]]
+ [define archive-directory [get-preference 'clipbook:archive-directory ]]
+ [require mzlib/defmacro]
+ [require "spath.rkt"]
+  (define (start request)
+  [write [request-bindings request]]
+  (response/xexpr
+   
+          `(html
+     (head (title "ClipStream"))
+     (body (h1 "All clips")
+          [form [[method "post"]]
+           ,[cons 'div [map [λ [a-clip] 
+                   ;[write a-clip]
+                            `[div [[style "border:3px solid red"]] 
+                                  [input [[name ,[format "delete_~a" [md5 [= data/0 a-clip]]]] [value "Delete"] [type "submit"]]]
+                                  ,[= data/0 a-clip]]] 
+                 [with-input-from-file  [build-path archive-directory "ClipbookArchive.txt"]
+                                         [λ [] [reverse [read-all ]]]]]]]))))
+
