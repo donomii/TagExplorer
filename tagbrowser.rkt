@@ -15,7 +15,7 @@
 [define page-length  15]
 
 [define base-dir  #f]
-
+(require web-server/safety-limits)
 (define-for-syntax args (current-command-line-arguments))
 (define-for-syntax GRAPHICS (or
                             (= (vector-length args) 0)
@@ -576,10 +576,14 @@
                                     (response
                                      200 #"Here it is"
                                      (current-seconds) #"unknown/unknown"
-                                     (list ) ; (make-header a b )
-                                     (λ (op) (copy-port 
-                                              [with-handlers [[[λ args #t] [λ args [write args]]]]
-                                                [open-input-file [apply build-path [cons base-dir [cddr split-path]]] #:mode 'binary ]] op)))]
+                                     (list (make-header (string->bytes/utf-8 "Content-Length") (string->bytes/utf-8 (format "~a" (file-size [apply build-path [cons base-dir [cddr split-path]]])))) ) ; (make-header a b )
+                                     (λ (op)
+ [with-handlers [[[λ args #t] [λ args [write args]]]]
+   [call-with-input-file [apply build-path [cons base-dir [cddr split-path]]]
+
+     [lambda [inport] (copy-port inport op)]
+     #:mode 'binary ]
+                                       ]))]
                                   
                                   ;The main page drawing routine
                                   
@@ -592,10 +596,10 @@
 
 [if graphics
 (serve/servlet start
-               #:launch-browser? #t #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t 	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
+               #:launch-browser? #t #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t #:safety-limits (make-unlimited-safety-limits) 	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
                )
 (serve/servlet start
-               #:launch-browser? #f #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t 	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
+               #:launch-browser? #f #:servlet-regexp #rx"" #:listen-ip "0.0.0.0" #:port 61120 #:quit? #t  #:stateless?   #t #:safety-limits (make-unlimited-safety-limits)	;#:manager (make-threshold-LRU-manager #f (* 512 1024 1024))
                )]
 
 
