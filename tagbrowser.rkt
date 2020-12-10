@@ -67,6 +67,11 @@
   [displayln [format "Shell command: explorer /select,\"~a\"" a-path-string]]
   [system [format "explorer /select,\"~a\"" a-path-string]]]
 
+[define [open-with-default a-path-string]
+  [log [format "Shell command: ~a" a-path-string]]
+  [displayln [format "Shell command: \"~a\"" a-path-string]]
+  [system [format "\"~a\"" a-path-string]]]
+
 [define build-results-page-old [lambda [selected-files ]
                                  `(html
                                    (head (title "Tag Browser"))
@@ -90,27 +95,42 @@
                                                [div [[style "border:3px solid red"]]
                                                     ,[build-download-box selected-files limit-list]]]
                                          ,[build-footer]))]]
-
+[define wrap-with-box [lambda [content]
+[wrap-content `(div ((class "box")) "\r\n        "
+                    ,content)
+                        ]]]
 [define build-results-page [lambda [selected-files]
-                             
-                             [wrap-content `(div ((class "box")) "\r\n        "
-                                  ,[if [empty? selected-tags]
+
+
+                           [wrap-content `(div  "\r\n        "
+                             ,[if [empty? selected-tags]
                                        `[br]
-                                       `[div [[style "border:3px solid green"]]  (h1 () "Selected Tags") ,[build-selected-box]]]
+                                       `[div ((class "box"))  (h1 () "Selected Tags") ,[build-selected-box]]]
+                                  ,[if [empty? rejected-tags]
+                                       `[br]
+                                       `[div [[style "border:3px solid green"]]  (h1 () "Rejected Tags") ,[build-rejected-box]]]
                                                     
                                   ,[if [empty? selected-files]
                                        `[br]
-                                       `(h2 () "Your search results") ]
+
+                                       `[div ((class "box"))
+                                             (h2 () "Your search results") 
+                                             (p () (br ())
+                                                 ,[if [not [empty? selected-files]] [build-download-box selected-files limit-list]`[br]])]]
+                                  `(br)
                                   ,[if [empty? selected-files]
                                        `[br]
-                                       `(p () (br ()) ,[if [not [empty? selected-files]] [build-download-box selected-files limit-list]`[br]])]
-                                  ,[if [empty? selected-files]
-                                       `[br]
-                                       `(div ((class "box")) "\r\n        "(h1 () "Related Tags") "\r\n        " (p () ,[build-tags-box [take-at-most [remove-tags [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50] [remove-tags selected-tags [suggest-tags selected-files]]]10 ]] ) )]
+                                       `(div ((class "box"))
+                                             "\r\n        "(h1 () "Related Tags") "\r\n        "
+                                             (p () ,[build-tags-box [take-at-most [remove-tags [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50] [remove-tags selected-tags [suggest-tags selected-files]]]10 ]]
+                                                ) )]
+                                  `[br]
                                   
-                                  ,[if  [not [empty? selected-files]]  `(div ((class "box")) "\r\n        "(h1 () "Extra") "\r\n        " (p () ,[build-tags-box [take-at-most  [remove-tags selected-tags [suggest-tags selected-files]]10]] )) `[br]]
+                                  ,[if  [and
+                                         [not [empty? selected-files]]
+                                              [not [empty? [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50]]]]  `(div ((class "box")) "\r\n        "(h1 () "Extra Tags") "\r\n        " (p () ,[build-tags-box [take-at-most  [remove-tags selected-tags [suggest-tags selected-files]]10]] )) `[br]]
                                   [div [[style "border:3px solid red"]] "Common Tags"
-                                                    ,[build-tags-box [take [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50]]
+                                                    ,[build-tags-box [take-at-most [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 50]]
                                                     ]
                                   )]]]
 [define wrap-content [lambda [content]
@@ -252,6 +272,9 @@
   [format "/getfile/~a" link ]]
 [define [build-remove-href a-string text]
   `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  [remove-tags [list a-string ] selected-tags] rejected-tags pre-selected-tags]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
+
+[define [build-remove-rejected-href a-string text]
+  `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  selected-tags  [remove-tags [list a-string ] rejected-tags] pre-selected-tags]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
 [define take-at-most [λ [ a-list a-num] [if [< [length a-list] a-num]
                                             a-list
                                             [take a-list a-num]]]]
@@ -260,6 +283,13 @@
                             [list 
                              
                              [build-remove-href a-clip a-clip] " "]] selected-tags]]]
+
+[define [build-rejected-box]
+  [cons 'span [append-map [λ [a-clip]
+                            [list 
+                             
+                             [build-remove-rejected-href a-clip a-clip] " "]] rejected-tags]]]
+
 [define [limit-list a-list]
   [if [< [length a-list] 30000]
       a-list
@@ -324,8 +354,20 @@
                               ) 
                            ]
                      
-                     [build-download-link a-clip [path->string[file-name-from-path a-clip]]]]]]
-          " " `[a [[href ,[string-join [list "/explorer" [uri-encode [path->string [build-path a-clip]]]] "/"]]] "Open in explorer"]'[br]]]]   files]
+                     `[div
+                       ,[build-download-link a-clip `(span ,[path->string[file-name-from-path a-clip]] (img ((alt ,[path->string[file-name-from-path a-clip]]) (height "32") (src "/resources/images/paw.gif") (width "32")))) ]
+                       
+[a [[href 
+
+     ,[string-join [list "/explorer" [uri-encode [path->string [build-path a-clip]]]] "/"]]] (img ((alt "Open in Explorer") (height "32") (src "/resources/images/folder.png") (width "32")))]
+
+[a [[href 
+
+     ,[string-join [list "/start" [uri-encode [path->string [build-path a-clip]]]] "/"]]] (img ((alt "Launch") (height "32") (src "/resources/images/bullet.gif") (width "32")))]
+
+
+                     ]]]]
+          " " '[br]]]]   files]
                     [build-pages-bar page-number full-search-results]]]
 [define build-info-response [lambda []
                               (response/xexpr
@@ -500,25 +542,30 @@
       [map [λ [fname] 
              [let [[tags  [hash-ref file-to-tags-cache fname]]]
                [map [λ [tag] [hash-increment selected-scored-tags tag]] tags]]]  selected-files]
-      [if [equal? action "export"]
-          [build-export-response]
-      [if [equal? action "info"]
-          [build-info-response]
-          [if [equal? action "explorer"]
+      [case action
+        [[ "export"]
+          [build-export-response]]
+      [[ "info"]
+          [build-info-response]]
+      [[ "explorer"]
               [begin [log "Open in explorer: " [path->string [apply build-path [cons base-dir  [cddr split-path]]]]]
                      [open-in-explorer [path->string [apply build-path [cons base-dir [cddr split-path]]]]]
-                     (response/xexpr [wrap-content `[span []  "Your file has been opened in explorer.  Please press the back button to return to your search." ]])]
-          [if [equal? action "tagexplorer"]
+                     (response/xexpr [wrap-content `[span []  "Your file has been opened in explorer.  Please press the back button to return to your search." ]])]]
+         [[ "start"]
+              [begin [log "Start: " [path->string [apply build-path [cons base-dir  [cddr split-path]]]]]
+                     [open-with-default [path->string [apply build-path [cons base-dir [cddr split-path]]]]]
+                     (response/xexpr [wrap-content `[span []  "Your file has been ;aunched in the default app.  Please press the back button to return to your search." ]])]]
+      [["tagexplorer"]
               [begin [log "Preparing tagexplorer response"]
-                     [build-tagexplorer-response]]
-              [if [equal? action "favicon.ico"]
+                     [build-tagexplorer-response]]]
+      [["favicon.ico"]
                   [begin [log "sending favicon"]
                          (response
                           200 #"favicon"
                           (current-seconds) #"image/vnd.microsoft.icon"
                           (list ) ; (make-header a b )
-                          (λ (op) (copy-port [open-input-bytes favicon.ico ] op)))]
-                  [if [equal? action "displayfilelist"]
+                          (λ (op) (copy-port [open-input-bytes favicon.ico ] op)))]]
+                  [["displayfilelist"]
                       [begin
                         [log "Display File List" selected-files]
                         (response/xexpr
@@ -531,8 +578,8 @@
                                               [div [[style "border:3px solid red"]]
                                                    ,[build-download-box selected-files limit-list]]
                                               
-                                              ,[build-footer]]])]
-                      [if [equal? action "displayfile"]
+                                              ,[build-footer]]])]]
+                      [["displayfile"]
                           [begin 
                             [log "displayfile" [caddr split-path]]
                             [let [[full-path [path->string [apply build-path [cons base-dir [cddr split-path]] ]]]]
@@ -556,8 +603,8 @@
                                              [div [[style "border:3px solid red"]]
                                                   ,[build-download-box selected-files limit-list]]]
                                        ,[build-footer])))]
-                            ]
-                          [if [equal? action "resources"]
+                            ]]
+                          [["resources"]
                               [begin 
                                 [log "Resources file: " [path->string [apply build-path [cons resources-dir [cddr split-path]]]]]
                                 
@@ -568,8 +615,8 @@
                                                     [string->bytes/utf-8 [format "attachment; filename=\"~a\"" [last [cddr split-path]] ]]] ) ; (make-header a b )
                                  (λ (op) (copy-port 
                                           [with-handlers [[[λ args #t] [λ args [write args]]]]
-                                            [open-input-file [apply build-path [cons resources-dir [cddr split-path]]] #:mode 'binary ]] op)))]
-                              [if [equal? action "getfile"]
+                                            [open-input-file [apply build-path [cons resources-dir [cddr split-path]]] #:mode 'binary ]] op)))]]
+                              [["getfile"]
                                   [begin 
                                     [log "getfile: " [path->string [apply build-path [cons base-dir [cddr split-path]]]]]
                                     
@@ -583,16 +630,16 @@
 
      [lambda [inport] (copy-port inport op)]
      #:mode 'binary ]
-                                       ]))]
-                                  
+                                       ]))]]
+                                 [else  
                                   ;The main page drawing routine
                                   
                                   [begin ;[log [xexpr->string [build-results-page selected-files]]]
                                          (response/xexpr
                                           [build-results-page selected-files]
-                                          )]]]]]]]]]]]
+                                          )]]]]]
     ;[log "Call complete"]
-    ])
+    )
 
 [if graphics
 (serve/servlet start
