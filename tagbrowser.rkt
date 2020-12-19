@@ -13,7 +13,7 @@
 [require "stop-words.rkt"]
 (require web-server/managers/lru)
 [define introduction #t]
-[define page-length  10]
+[define page-length  20]
 
 [define base-dir  #f]
 (require web-server/safety-limits)
