@@ -4,10 +4,10 @@
   (require web-server/servlet)
   (require srfi/1)
   (require net/uri-codec)
-  (define [make-context selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results]
+  (define [make-context selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results split-path base-dir tags-for-file page-length]
     (let [[x
-           (zip `(selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results)
-                (list selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results))]]
+           (zip `(      selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results split-path base-dir tags-for-file page-length)
+                (list   selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results split-path base-dir tags-for-file page-length))]]
       (lambda (key)
         [let [[res [assoc key x]]]
           [if res
@@ -25,7 +25,7 @@
         (body (h1 "All tags")
               [form [[method "post"]]
                     [div [[style "border:3px solid red"]] 
-                         ,[build-selected-box]
+                         ;,[build-selected-box c]
                          ]
                     [div [[style "border:3px solid red"]] 
                          ,presets]
@@ -49,7 +49,7 @@
        `(div  "\r\n        "
               ,[if [empty?  [c 'selected-tags]]
                    `[br]
-                   `[div ((class "box"))  (h1 () "Selected Tags") ,[build-selected-box]]]
+                   `[div ((class "box"))  (h1 () "Selected Tags") ,[build-selected-box c]]]
               ,[if [empty? [c 'rejected-tags]]
                    `[br]
                    `[div [[style "border:3px solid green"]]  (h1 () "Rejected Tags") ,[build-rejected-box]]]
@@ -108,7 +108,8 @@
                                   (a ((href "index.html")) "Reset") " " nbsp "|" nbsp " " 
                                   (a ((href "/export")) "Export List") " " nbsp "|" nbsp " " 
                                   (a ((href "#")) "About TagExplorer") " " nbsp "|" nbsp " " 
-                                  (a ((href "/info")) "Info") " " nbsp "|" nbsp " " 
+                                  (a ((href "/info")) "Info") " " nbsp "|" nbsp " "
+                                  (a ((href "/exit")) "Exit") " " nbsp "|" nbsp " " 
                                   (a ((href "/tagexplorer")) "Tag Explorer") " " nbsp "|" nbsp " " 
                                   (a ((href "#")) "Contact us") nbsp "|" nbsp " " 
                                   (a ((href "#")) [span [[class ""]]"Search" 
@@ -172,19 +173,19 @@
     `[a [[href ,[format "/getfile/~a" link ]]] ,text]]
   [define[ build-download-link-string link text]
     [format "/getfile/~a" link ]]
-  [define [build-remove-href a-string text remove-tags selected-tags rejected-tags pre-selected-tags]
-    `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  [remove-tags [list a-string ] selected-tags] rejected-tags pre-selected-tags]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
+  [define [build-remove-href a-string text c]
+    `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  [[c 'remove-tags] [list a-string ] [c 'selected-tags]] [c 'rejected-tags] [c 'presets]]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
 
   [define [build-remove-rejected-href a-string text remove-tags selected-tags rejected-tags pre-selected-tags]
     `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  selected-tags  [remove-tags [list a-string ] rejected-tags] pre-selected-tags]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
   [define take-at-most [λ [ a-list a-num] [if [< [length a-list] a-num]
                                               a-list
                                               [take a-list a-num]]]]
-  [define [build-selected-box selected-tags]
+  [define [build-selected-box c]
     [cons 'span [append-map [λ [a-clip]
                               [list 
                              
-                               [build-remove-href a-clip a-clip] " "]] selected-tags]]]
+                               [build-remove-href a-clip a-clip c] " "]] [c 'selected-tags]]]]
 
   [define [build-rejected-box rejected-tags]
     [cons 'span [append-map [λ [a-clip]
@@ -193,20 +194,21 @@
                                [build-remove-rejected-href a-clip a-clip] " "]] rejected-tags]]]
 
 
-  [define [build-pages-bar page-number a-list selected-tags rejected-tags] 
-    [letrec [[page-length  150]
-             [total-pages [quotient [length a-list] page-length]]
-           
-             ]
+  [define [build-pages-bar  c ] 
+    [letrec [[page-length  [c 'page-length]]
+             [total-pages [quotient [length [c 'full-search-results]] page-length]]]
     
       [append
        `[div ]
        [map [lambda [p]
               `[span [[elem "debug"]]
-                     ,[build-better-href  selected-tags [format "~a" p] rejected-tags p] " "]] [iota  total-pages]]]]
+                     ,[build-better-href  [c 'selected-tags] [format "~a" p] [c 'rejected-tags] [c 'presets] p] " "]] [iota  total-pages]]]]
     ]
 
-  [define [build-file-info split-path base-dir remove-tags tagcounts tags-for-file  selected-tags rejected-tags]
+  [define [build-file-info c split-path]
+    [let [
+          [base-dir [c 'base-dir]]]
+                      
     [let [[full-path [path->string [apply build-path [cons base-dir [cddr split-path]] ]]]
           [directory [path->string [apply build-path [cons base-dir [reverse [cdr [reverse [cddr split-path]]]]]]]]
           [filename [last split-path]]]
@@ -217,15 +219,17 @@
                       [map uri-encode 
                            [map symbol->string 
                                 [take-at-most 
-                                 [remove-tags 
+                                 [[c 'remove-tags] 
                                   [take-at-most 
-                                   [sort [hash-keys tagcounts] > #:key [lambda [a-key] [hash-ref tagcounts a-key]]] 
+                                   [sort [hash-keys [c 'tagcounts]] > #:key [lambda [a-key] [hash-ref [c 'tagcounts] a-key]]] 
                                    50]
-                                  [tags-for-file [string->symbol [path->string [apply build-path [cddr split-path] ]]]]] 10 ]]] selected-tags rejected-tags]
+                                  [[c 'tags-for-file] [string->symbol [path->string [apply build-path [cddr split-path] ]]]]] 10 ]]] [c 'selected-tags] [c 'rejected-tags] [c 'presets]]
             ;"Directory: " ,directory [br] ;,[string-join  [reverse [drop [reverse [cddr split-path]] 1]] "/"] [br]
             "File Size: " ,[format "~a Mib" [exact->inexact [round [/ [file-size full-path] 1000000]]]] [br]
             [a [[href ,[build-download-link-string [string-join [cddr split-path] "/"] [last split-path] ]]] ,[format "Download" ]]
-            ]]]
+            ]]]]
+
+  
   [define [build-download-box files limiter page-number c] 
     [append '[div []]  [append-map [λ [a-clip]
                                      [let [[ a-clip [symbol->string a-clip]]]
@@ -244,7 +248,7 @@
                                                                             [param [[name "movie"] [value "/resources/player_mp3_maxi.swf"]]]
                                                                             [param [[name "FlashVars"] [value ,[format "showloading=always&mp3=~a"  [string-join [list "/getfile" [path->string [build-path a-clip]]] "/"]]]]]
                                                                             ]]] ]
-                                                  [p [],[build-file-info [append [list "a" "b" ][regexp-split #rx"/|\\" a-clip]]]]]
+                                                  [p [],[build-file-info c [append [list "a" "b" ][regexp-split #rx"/|\\" a-clip]]]]]
                                             [if [regexp-match "flv" a-clip]
                                                 `[object [[type "application/x-shockwave-flash"] [data "/resources/flvmaxi.swf"] [width "320"]  [height "240"]]
                                                          [param [[name "movie"] [value "/resources/flvmaxi.swf"]]]
@@ -256,7 +260,7 @@
                                                                     (img ((align "left") (alt ,[format "~a" a-clip ]) (height "129") (src ,[format "/getfile/~a" a-clip ]) 
                                                                                          (style "margin-right:10px;margin-bottom:10px;") (width "92")))
                                                                     ]
-                                                              ,[build-file-info [append [list "a" "b" ][regexp-split #rx"/|\\" a-clip]]]
+                                                              ,[build-file-info c [append [list "a" "b" ][regexp-split #rx"/|\\" a-clip]]]
                                                               ) 
                                                            ]
                      
@@ -274,7 +278,7 @@
 
                                                       ]]]]
                                         " " '[br]]]]   files]
-            [build-pages-bar [c 'page-number] [c 'full-search-results] [c 'selected-tags] [c 'rejected-tags]]]]
+            [build-pages-bar c]]]
   [define build-info-response [lambda [resources-dir base-dir tagcounts log-history]
                                 (response/xexpr
                                
