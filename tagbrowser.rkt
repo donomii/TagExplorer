@@ -12,7 +12,7 @@
 (require mzlib/pregexp mzlib/string)
 [require "stop-words.rkt"]
 (require web-server/managers/lru)
-[define introduction #t]
+
 [define page-length  20]
 
 [define base-dir  #f]

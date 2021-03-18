@@ -4,6 +4,7 @@
   (require web-server/servlet)
   (require srfi/1)
   (require net/uri-codec)
+  [define introduction #t]
   (define [make-context selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results split-path base-dir tags-for-file page-length]
     (let [[x
            (zip `(      selected-files presets tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results split-path base-dir tags-for-file page-length)
@@ -89,7 +90,7 @@
 
 
   [define wrap-content
-    [lambda [content introduction c]
+    [lambda [content x c]
       `(html ((xmlns "http://www.w3.org/1999/xhtml")) "\r\n" 
              (head () "\r\n" 
                    (meta ((content "text/html; charset=iso-8859-1") (http-equiv "Content-Type"))) "\r\n" 
