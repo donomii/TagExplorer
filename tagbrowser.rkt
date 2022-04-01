@@ -71,12 +71,16 @@
 [define [open-in-explorer a-path-string]
   [log [format "Shell command: explorer /select,~a" a-path-string]]
   [displayln [format "Shell command: explorer /select,\"~a\"" a-path-string]]
-  [system [format "explorer /select,\"~a\"" a-path-string]]]
+  [system [format "open -R \"~a\"" a-path-string]]  ;FIXME
+  [system [format "explorer /select,\"~a\"" a-path-string]]  ;FIXME
+  ]
 
 [define [open-with-default a-path-string]
   [log [format "Shell command: ~a" a-path-string]]
   [displayln [format "Shell command: \"~a\"" a-path-string]]
-  [system [format "\"~a\"" a-path-string]]]
+  [system [format "\"~a\"" a-path-string]]
+  [system [format "open \"~a\"" a-path-string]]
+  ]
 
 
 [define wrap-with-box [lambda [content]
@@ -289,7 +293,7 @@
         [[ "explorer"]
          [begin [log "Open in explorer: " [path->string [apply build-path [cons base-dir  [cddr split-path]]]]]
                 [open-in-explorer [path->string [apply build-path [cons base-dir [cddr split-path]]]]]
-                (response/xexpr [wrap-content `[span []  "Your file has been opened in explorer.  Please press the back button to return to your search." ] ""
+                (response/xexpr [wrap-content `[span []  ,[format "Your file ~a has been opened in explorer.  Please press the back button to return to your search." [path->string [apply build-path [cons base-dir  [cddr split-path]]]]]] ""
                                               
                                               [make-context selected-files pre-selected-tags tagcounts remove-tags selected-tags rejected-tags suggest-tags limit-list page-number full-search-results split-path base-dir tags-for-file page-length]])]]
         [[ "start"]

@@ -53,7 +53,7 @@
                    `[div ((class "box"))  (h1 () "Selected Tags") ,[build-selected-box c]]]
               ,[if [empty? [c 'rejected-tags]]
                    `[br]
-                   `[div [[style "border:3px solid green"]]  (h1 () "Rejected Tags") ,[build-rejected-box]]]
+                   `[div [[style "border:3px solid green"]]  (h1 () "Rejected Tags") ,[build-rejected-box c ]]]
                                                     
               ,[if [empty? [c 'selected-files]]
                    `[br]
@@ -177,8 +177,8 @@
   [define [build-remove-href a-string text c]
     `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  [[c 'remove-tags] [list a-string ] [c 'selected-tags]] [c 'rejected-tags] [c 'presets]]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
 
-  [define [build-remove-rejected-href a-string text remove-tags selected-tags rejected-tags pre-selected-tags]
-    `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  selected-tags  [remove-tags [list a-string ] rejected-tags] pre-selected-tags]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
+  [define [build-remove-rejected-href a-string text c]
+    `[a [[href ,[format "/removetag/~a?selected=~a&rejected=~s&or=~a" a-string  [c 'selected-tags]  [[c 'remove-tags] [list a-string ] [c 'rejected-tags]] [c 'presets]]] [title ,[format "Tag ~a adds ~a entries.  Click to remove." a-string 10]]] ,text]]
   [define take-at-most [λ [ a-list a-num] [if [< [length a-list] a-num]
                                               a-list
                                               [take a-list a-num]]]]
@@ -188,11 +188,11 @@
                              
                                [build-remove-href a-clip a-clip c] " "]] [c 'selected-tags]]]]
 
-  [define [build-rejected-box rejected-tags]
+  [define [build-rejected-box c]
     [cons 'span [append-map [λ [a-clip]
                               [list 
                              
-                               [build-remove-rejected-href a-clip a-clip] " "]] rejected-tags]]]
+                               [build-remove-rejected-href a-clip a-clip c] " "]] [c' rejected-tags]]]]
 
 
   [define [build-pages-bar  c ] 
@@ -266,15 +266,17 @@
                                                            ]
                      
                                                     `[div
-                                                      ,[build-download-link a-clip `(span ,[path->string[file-name-from-path a-clip]] (img ((alt ,[path->string[file-name-from-path a-clip]]) (height "32") (src "/resources/images/paw.gif") (width "32")))) ]
+                                                      
                        
                                                       [a [[href 
 
-                                                           ,[string-join [list "/explorer" [uri-encode [path->string [build-path a-clip]]]] "/"]]] (img ((alt "Open in Explorer") (height "32") (src "/resources/images/folder.png") (width "32")))]
+                                                           ,[string-join [list "/explorer" [uri-encode [path->string [build-path a-clip]]]] "/"]]] (img ((alt "Open in Explorer") (height "32") (src "/resources/images/revealfinder.jpg") (width "32")))]
 
                                                       [a [[href 
 
-                                                           ,[string-join [list "/start" [uri-encode [path->string [build-path a-clip]]]] "/"]]] (img ((alt "Launch") (height "32") (src "/resources/images/bullet.gif") (width "32")))]
+                                                           ,[string-join [list "/start" [uri-encode [path->string [build-path a-clip]]]] "/"]]] (img ((alt "Launch") (height "32") (src "/resources/images/launch.png") (width "32")))]
+
+                                                      ,[build-download-link a-clip `(span ,[path->string[file-name-from-path a-clip]] (img ((alt ,[path->string[file-name-from-path a-clip]]) (height "32") (src "/resources/images/download-arrow.jpg") (width "32")))) ]
 
 
                                                       ]]]]
