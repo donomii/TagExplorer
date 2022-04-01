@@ -276,7 +276,7 @@
 
                                                            ,[string-join [list "/start" [uri-encode [path->string [build-path a-clip]]]] "/"]]] (img ((alt "Launch") (height "32") (src "/resources/images/launch.png") (width "32")))]
 
-                                                      ,[build-download-link a-clip `(span ,[path->string[file-name-from-path a-clip]] (img ((alt ,[path->string[file-name-from-path a-clip]]) (height "32") (src "/resources/images/download-arrow.jpg") (width "32")))) ]
+                                                      ,[build-download-link a-clip `(span (img ((alt ,[path->string[file-name-from-path a-clip]]) (height "32") (src "/resources/images/download-arrow.jpg") (width "32"))) ,[path->string[file-name-from-path a-clip]] ) ]
 
 
                                                       ]]]]
