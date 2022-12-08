@@ -1,10 +1,14 @@
 #lang racket
+
+; TagExplorer is an attempt to recreate a recommendation system as used by many popular websites.  It automatically generates tags (keywords) from files, and then allows the user to search on these keywords.  TagExplorer then analyses the search results and presents recommendations based on the search results - e.g. by looking at all the keywords in the search results and recommending the most popular.
+
+; There is no database for TagExplorer, all information is kept in memory and lost when the program shuts down.
+
 (require web-server/servlet
          web-server/servlet-env
          racket/path srfi/1
          xml)
 (require net/uri-codec)
-;[require unstable/port]
 [require file/md5]
 [require "builders.rkt"]
 [require "spath.rkt"]
@@ -13,15 +17,22 @@
 [require "stop-words.rkt"]
 (require web-server/managers/lru)
 
+;Search results page length
 [define page-length  20]
 
+;Global directory to scan and fetch results from
 [define base-dir  #f]
+
 (require web-server/safety-limits)
 (define-for-syntax args (current-command-line-arguments))
+
+
 (define-for-syntax GRAPHICS (or
                              (= (vector-length args) 0)
                              (equal? (vector-ref args 0) "--graphics")))
 
+
+; Use racket/gui for the popup dialog box to select a directory to scan.  Use macros to switch in the correct code before compilation finishes
 (define-syntax (if-graphics stx)
   (syntax-case stx ()
     ((_ debug-expr non-debug-expr)
@@ -41,6 +52,7 @@
 
 
 
+; Cross-platform file type identification doesn't exist, apparently
 [define mime-types '[[flv  . #"video/x-flv"]
                      [mp4  . #"video/mp4"]
                      [jpg  . #"image/jpeg"]
@@ -56,7 +68,10 @@
                      [mp3  . #"audio/mpeg3"]
                      [m4v  . #"video/mp4"]]]
 
+; Move to another file
 [define favicon.ico #"\377\330\377\340\0\20JFIF\0\1\1\0\0\1\0\1\0\0\377\376\0<CREATOR: gd-jpeg v1.0 (using IJG JPEG v62), quality = 100\n\377\333\0C\0\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\377\333\0C\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\1\377\300\0\21\b\0\20\0\20\3\1\"\0\2\21\1\3\21\1\377\304\0\37\0\0\1\5\1\1\1\1\1\1\0\0\0\0\0\0\0\0\1\2\3\4\5\6\a\b\t\n\v\377\304\0\265\20\0\2\1\3\3\2\4\3\5\5\4\4\0\0\1}\1\2\3\0\4\21\5\22!1A\6\23Qa\a\"q\0242\201\221\241\b#B\261\301\25R\321\360$3br\202\t\n\26\27\30\31\32%&'()*456789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz\203\204\205\206\207\210\211\212\222\223\224\225\226\227\230\231\232\242\243\244\245\246\247\250\251\252\262\263\264\265\266\267\270\271\272\302\303\304\305\306\307\310\311\312\322\323\324\325\326\327\330\331\332\341\342\343\344\345\346\347\350\351\352\361\362\363\364\365\366\367\370\371\372\377\304\0\37\1\0\3\1\1\1\1\1\1\1\1\1\0\0\0\0\0\0\1\2\3\4\5\6\a\b\t\n\v\377\304\0\265\21\0\2\1\2\4\4\3\4\a\5\4\4\0\1\2w\0\1\2\3\21\4\5!1\6\22AQ\aaq\23\"2\201\b\24B\221\241\261\301\t#3R\360\25br\321\n\26$4\341%\361\27\30\31\32&'()*56789:CDEFGHIJSTUVWXYZcdefghijstuvwxyz\202\203\204\205\206\207\210\211\212\222\223\224\225\226\227\230\231\232\242\243\244\245\246\247\250\251\252\262\263\264\265\266\267\270\271\272\302\303\304\305\306\307\310\311\312\322\323\324\325\326\327\330\331\332\342\343\344\345\346\347\350\351\352\362\363\364\365\366\367\370\371\372\377\332\0\f\3\1\0\2\21\3\21\0?\0\303\370\305\250'\355\a\342=C\3427\307\2153\342W\215\3741\342\235+\302Z\257\301\237\6x$x\255\274?\341=3S7\367\232\244\257m\341U\232\305\374iok.\210\326\263x\326#\341k\320\372\202\336|\251\2\307\344Z_\305\337\24~\307:\237\204\274u\360\307\301~<\323 \360\354\177\360\223~\321\326:\353\370\233O\360\227\210l\254t]N\363\307\26\326\0267\221\301\360\374]E\251[\332\305\360\356O\1\35\213g<\255\255\304Z\25-\364\247\304\235\n\317\366y\265O\204\177\31<ow\360\223M\265\261\261\320\274!\361Xj\232'\2074\315cG\322\36\336=>\347D\361/\212\254\257\3743\6\265.\237i\25\266\257\243\337A=\344\36e\323Ao\3455\275\342\374\301\256\3746\277\375\252\357\346\375\234\277g\337\213\332\357\306\324\361d\261\177\302y\361\eU\327|%\342\257\v\3747\360e\312=\206\261w{\257x\eB\3214o\264\334Z\3132\350\372\23\311u\253j\232\247\226\261}\236\312;\271\355\377\0\312>\27\343\0361\305\346\330^\30\314\362*q\303\323\305W\302W\314k\345\371\254a\375\236\253\322\366\271\272\307Q\240\262\312ui\321\346\255V\23\305\306\265|\306\225,G/2\205\n\237\335y\227\tp\235:u3\\7\20b\245\223O\v\34\306\236\36\226#\6\362\364\243F\\\231l\250T\304}jn\244\371h'\f;\234\25YS\3765\352C\377\331"]
+
+;  Guess mime type based on filename
 [define guess-mime-type [lambda [a-string]
                           [letrec [[a-suffix [string-downcase [substring a-string [- (string-length a-string) 3](string-length a-string)]]]
                                    [result [assoc (string->symbol a-suffix) mime-types]]]
@@ -68,6 +83,7 @@
   ]
 
 
+; Show file in the platform file manager
 [define [open-in-explorer a-path-string]
   [log [format "Shell command: explorer /select,~a" a-path-string]]
   [displayln [format "Shell command: explorer /select,\"~a\"" a-path-string]]
@@ -75,6 +91,8 @@
   [system [format "explorer /select,\"~a\"" a-path-string]]  ;FIXME
   ]
 
+
+; Launch file using the default program on this OS
 [define [open-with-default a-path-string]
   [log [format "Shell command: ~a" a-path-string]]
   [displayln [format "Shell command: \"~a\"" a-path-string]]
@@ -83,6 +101,7 @@
   ]
 
 
+; Puts a div around some shtml
 [define wrap-with-box [lambda [content]
                         [wrap-content `(div ((class "box")) "\r\n        "
                                             ,content)
@@ -91,17 +110,22 @@
                                       ]]]
 
 
+; Does nothing
 [define identity [λ [x] x]]
 ;[define resources-dir "e:/programming/" ]
-[define resources-dir [current-directory] ]
+
+; Path to icons etc
+[define resources-dir [current-directory]]
+; Our internal log(presented on webpage)
 [define log-history ""]
+; Write a message to STDOUT and also not it in the internal log
 [define log [λ args [write args][newline]
               [set! log-history [string-join [list log-history [format "~a~n"  args]] " "]]]]
 [log "Chose base directory" base-dir]
+; The main routine to build the in-memory tag database
 [define [recurse-dir dir]
   [displayln dir]
   [append [directory-list dir] 
-          
           [append-map 
            [λ [x] 
              [map [λ [y] [build-path x y]]
@@ -110,6 +134,7 @@
                     [recurse-dir [build-path  dir x]]]]]
            [directory-list dir]]]]
 
+; Tokenises a filename
 [define [tags-from-filename rawname]  [letrec [[fname [string-downcase rawname]]
                                                [filename  [last [regexp-split "[\\/?]" fname]]]
                                                [with-spaces [regexp-replace "\\.|_" filename " "]]] 
@@ -120,17 +145,21 @@
                                                             [regexp-split "\\-+|\\[+|\\]+" with-spaces]
                                                             [regexp-split "\\-+| +|_+" with-spaces]
                                                             ;[regexp-split "\\/+" filename]
-                                                            ]]]] 
+                                                            ]]]]
+
+;  Frequency counts for tags
 [define tagcounts [make-hasheq]]
 [define tags-to-files [new markov%]]
 [define file-to-tags-cache [make-hasheq]]
 [define total-selected-files 1]
 [define selected-scored-tags [make-hasheq]]
 [define page-number 0]
+; Add one to the value in a hash
 [define [hash-increment a-hash a-key] [hash-set! a-hash a-key [add1 [hash-ref a-hash a-key 0]]]]
 [define full-search-results '[]]
 [log  [format "Scanning ~a" base-dir]]
 [define all-files-list '[]]
+
 [define quiet
   [begin
     [map [λ [fname]
@@ -146,11 +175,11 @@
            [hash-remove! [send tags-to-files get-table] x]] [map string->symbol all-stop-words]]
     [set! all-files-list [hash-keys file-to-tags-cache] ]]]
 [set! quiet #f]
-;[write tagcounts]
+
+; This is a single-user webapp, most of the user's state is global
 [define selected-tags '[]]
 [define rejected-tags '[]]
 [define pre-selected-tags '[gif png]]
-;[put-preferences [list 'clipbook:archive-directory] [list [get-preference 'clipbook:archive-directory [lambda [] [path->string [get-directory]]]]]]
 [define archive-directory [get-preference 'clipbook:archive-directory ]]
 
 [define [limit-list a-list]
@@ -376,9 +405,9 @@
                    (string->bytes/utf-8 "Content-Length")
                    (string->bytes/utf-8 (format "~a" (file-size [apply build-path [cons base-dir [cddr split-path]]]))))
                   (make-header
-(string->bytes/utf-8 "Content-Disposition") (string->bytes/utf-8 (format "inline; filename=~s" [first [reverse split-path]]))  ; change inline to attachment
+                   (string->bytes/utf-8 "Content-Disposition") (string->bytes/utf-8 (format "inline; filename=~s" [first [reverse split-path]]))  ; change inline to attachment
 
-)) ; (make-header a b )
+                   )) ; (make-header a b )
             (λ (op)
               [with-handlers [[[λ args #t] [λ args [write args]]]]
                 [call-with-input-file [apply build-path [cons base-dir [cddr split-path]]]
